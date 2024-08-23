@@ -12,6 +12,7 @@ Alignment toolbar
 Saving files in XML format
 Barcode magnification property
 Show/Hide object rect
+Lock/unlok objects
 I'm working on ORIENTATION and CHECK_DIGIT for Bidimensional barcodes
 github publication
 
