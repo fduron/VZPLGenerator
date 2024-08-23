@@ -28,3 +28,5 @@ Now is it possible to select several objects at a time, and change size and posi
 for the selected objects in one single step, I'm working on the clipboard events.
 
 ![image](https://github.com/user-attachments/assets/f8ba66c3-a4d3-404e-98d3-520c24366937)
+![image](https://github.com/user-attachments/assets/1cd36d8e-2b21-4d0a-8985-0680e22d50cf)
+
