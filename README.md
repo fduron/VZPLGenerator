@@ -12,6 +12,7 @@ Alignment toolbar
 Saving files in XML format
 Barcode magnification property
 Show/Hide object rect
+I'm working on ORIENTATION and CHECK_DIGIT for Bidimensional barcodes
 github publication
 
 Release 0.1.3 2013-03-25
@@ -24,3 +25,5 @@ source code uploaded
 First release 2013-03-11 
 Now is it possible to select several objects at a time, and change size and position
 for the selected objects in one single step, I'm working on the clipboard events.
+
+![image](https://github.com/user-attachments/assets/f8ba66c3-a4d3-404e-98d3-520c24366937)
