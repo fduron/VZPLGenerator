@@ -17,7 +17,7 @@ type
   tUseVariableText = (use_variable, use_text);
   TRulerUnit = (ru_Centimeters, ru_Inches, ru_Pixels);
   TRulerOrientation = (ro_Horizontal, ro_Vertical);
-  TLabelOrientation = (loPortrait, loLandscape);
+  TLabelOrientation = (loPortrait, loLandscape); //ZPL Label Orientation
   TBarcodeType = ( bcAztec, bcCode11, bcCode39, bcCodeQR, bcCodeDM);
   TShapeType = ( shRectangle, shEllipse, shHorLine, shVertLine);
   tZPLObjectKind = ( okBarCode, okForm, okLabel );
@@ -82,6 +82,7 @@ type
     fObjectKind: TZPLObjectKind;
     fLocked: Boolean;
     fShowRect: Boolean;
+    fOrientation: TLabelOrientation;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -112,6 +113,7 @@ type
     property ObjectKind : TZPLObjectKind read fObjectKind;
     property Locked : Boolean read fLocked write SetLocked default false;
     property ShowRect : Boolean read fShowRect write SetShowRect default true;
+    property Orientation : TLabelOrientation read fOrientation write fOrientation default loPortrait;
   end;
 
   tZPLObjects = array of tZPLObject;
@@ -165,7 +167,6 @@ type
     fShapeType: TShapeType;
     fThickness: integer;
     function GetZPLCommand: String;
-    function getDPIDimensions: TRect; override;
     procedure setShapeType(const Value: TShapeType);
   published
     constructor Create(AOwner: TComponent); override;
@@ -711,17 +712,46 @@ function TZPLObject.getDPIDimensions: TRect;
 {TZPLFormObject has his own getDPIDimensions version}
 var
  // ScreenDPI ,
-  PrinterDPI : Integer;
+  PrinterDPI, L, W, T, H : Integer;
+  i : FixedInt;
 begin
+  L := Left;
+  T := Top;
+  W := Width;
+  H := Height;
+
+  if Self is TZPLFormObject then
+  begin
+    case TZPLFormObject(Self).ShapeType of
+      shVertLine, shHorLine:
+      begin
+        L := L + 3;
+        W := W - 6;
+        T := T + 3;
+        H := H - 6;
+      end;
+    end;
+  end;
+
 //  ScreenDPI := InchesToPixels(Canvas.Handle, 1, False);
   PrinterDPI := GetDeviceCaps(Printer.Handle, LOGPIXELSX);
-  Result.Left := Round((printerDPI/ScreenDPI) * Left);
-  Result.Right := Round((printerDPI/ScreenDPI) * Width);
+  Result.Left := Round((printerDPI/ScreenDPI) * L);
+  Result.Right := Round((printerDPI/ScreenDPI) * W);
 
 //  ScreenDPI := InchesToPixels(Canvas.Handle, 1, True);
   PrinterDPI := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
-  Result.Top := Round((printerDPI/ScreenDPI) * Top);
-  Result.Bottom := Round((printerDPI/ScreenDPI) * Height);
+  Result.Top := Round((printerDPI/ScreenDPI) * T);
+  Result.Bottom := Round((printerDPI/ScreenDPI) * H);
+
+  if orientation = loLandscape then //Invert coordinates
+  begin
+    Result.Left := Printer.PageWidth - Result.Top - Result.Bottom;
+    Result.Top := Result.Left;
+
+    i := Result.Right;
+    Result.Right := Result.Bottom;
+    Result.Bottom := i;
+  end;
 end;
 
 procedure TZPLObject.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -806,7 +836,7 @@ begin
   //Canvas.TextOut(0,0, Format('L:%d, T:%d, W:%d, H:%d', [Left, Top, Width, Height]));
   R := ClientRect;
   Canvas.StretchDraw(R, BMPObject);
-  //Canvas.DrawFocusRect(Rect(0, 0, Width, Height) );
+
   if ShowRect then
     Canvas.DrawFocusRect(ClientRect);
 
@@ -1277,16 +1307,16 @@ function TZPLDocument.ZPLScript: String;
 
   function StrWidthHeight(s : String; R : TRect) : String;
   begin
-    if Orientation = loPortrait then
-    begin
+    {if Orientation = loPortrait then
+    begin}
       s := ReplaceStr(s, '<WIDTH>', IntToStr(R.Right) );
       s := ReplaceStr(s, '<HEIGHT>', IntToStr(R.Bottom));
-    end
+    {end
     else
     begin
       s := ReplaceStr(s, '<WIDTH>', IntToStr(R.Bottom));
       s := ReplaceStr(s, '<HEIGHT>', IntToStr(R.Right) );
-    end;
+    end;}
 
     Result := s;
   end;
@@ -1303,18 +1333,17 @@ function TZPLDocument.ZPLScript: String;
 
   function StrPosition(s : String; R : TRect) : String;
   begin
-    if Orientation = loPortrait then
-    begin
+    {if Orientation = loPortrait then
+    begin}
       s := ReplaceStr(s, '<LEFT>', IntToStr(R.Left));
       s := ReplaceStr(s, '<TOP>', IntToStr(R.Top));
-    end
+    {end
     else
     begin
       R.Top := Printer.PageWidth - R.Top - R.Bottom;
       s := ReplaceStr(s, '<TOP>', IntToStr(R.Left));
       s := ReplaceStr(s, '<LEFT>', IntToStr(R.Top));
-    end;
-
+    end;}
     Result := s;
   end;
 
@@ -1327,8 +1356,12 @@ var
   I: Integer;
   fZPLText : TStringList;
   s, aText: String;
-  W, ii, ij : Integer;
-  printer_DPI : Integer;
+  W, ii, ij: Integer;
+  printer_DPI: Integer;
+  R: TRect;
+  BC: TZPLBarcodeObject;
+  txO: TZPLTextObject;
+  zpO: TZPLFormObject;
 begin
   SelectPrinter;
 
@@ -1342,74 +1375,78 @@ begin
 
   for I := 0 to fZPLObjects.count - 1 do
   begin
+    s := '';
     if (TObject(fZPLObjects[I]) is TZPLTextObject) then
-    with TZPLTextObject(fZPLObjects[I]) do
     begin
-      s := StrWidthHeight(ZPLCommand, DPIDimensions);
-      s := StrPosition(s, DPIDimensions);
-      s := strFontCode(s, DPIDimensions, FontCode, Text);
+      txO := TZPLTextObject(fZPLObjects[I]);
+      txO.Orientation := self.Orientation;
+      R := txO.DPIDimensions;
+      s := StrWidthHeight(txO.ZPLCommand, R);
+      s := StrPosition(s, R);
+      s := strFontCode(s, R, txO.FontCode, txO.Text);
 
-//      s := ReplaceStr(s, '<ORIENTATION>', FontCode + getOrientationChar(fc));
+//      s := ReplaceStr(s, '<ORIENTATION>', txO.FontCode + getOrientationChar(fc));
 /////////////////////////////////////////////////////////////////////////////////////////
       if UseVariableOrText = use_Text then
-        s := ReplaceStr(s, '<TEXT>', Text)
+        s := ReplaceStr(s, '<TEXT>', txO.Text)
       else
       begin
-        if Variable.Trim.IsEmpty then
-          s := ReplaceStr(s, '<TEXT>', Text)
+        if txO.Variable.Trim.IsEmpty then
+          s := ReplaceStr(s, '<TEXT>', txO.Text)
         else
-          s := ReplaceStr(s, '<TEXT>', Variable);
+          s := ReplaceStr(s, '<TEXT>', txO.Variable);
       end;
     end
     else
     if (TObject(fZPLObjects[I]) is TZPLBarcodeObject) then
-    with TZPLBarcodeObject(fZPLObjects[I]) do
     begin
-      s := StrPosition(ZPLCommand, DPIDimensions);
-      //s := strWidthHeight(s, DPIDimensions);
-      s := BC1d_StrHeight(s, DPIDimensions);
+      BC := TZPLBarcodeObject(fZPLObjects[I]);
+      BC.Orientation := self.Orientation;
+      R := BC.DPIDimensions;
+      s := StrPosition(BC.ZPLCommand, R);
+      //s := strWidthHeight(s, R);
+      s := BC1d_StrHeight(s, R);
 
-      case BarcodeType of
+      case BC.BarcodeType of
         bcAztec:  s := s.Replace('<ORIENTATION>', LocalGetOrientationChar); {TODO -oOwner -cGeneral : Por confirmar la rotacion}
         bcCodeQR: s := s.Replace('<ORIENTATION>', LocalGetQROrientationChar);
-        bcCode39: begin
-                    //Get Module width accordint to the number of characters in text
-                    ii := (Length(Text) + 3) * 10; //add 2 due to *TEXT* 5 black bars + 5 white bars = 10
-                    s.Replace('<ORIENTATION>', LocalGetOrientationChar); {TODO -oOwner -cGeneral : Por confirmar la rotacion}
+        bcCode39:
+        begin
+          //Get Module width accordint to the number of characters in text
+          ii := (Length(BC.Text) + 3) * 10; //add 2 due to *TEXT* 5 black bars + 5 white bars = 10
+          s.Replace('<ORIENTATION>', LocalGetOrientationChar); {TODO -oOwner -cGeneral : Por confirmar la rotacion}
 
-                    iJ := DPIDimensions.Right; //Does not matter the orientation always yse Right as the size of the BC
+          iJ := R.Right; //Does not matter the orientation always yse Right as the size of the BC
 
-                    ii := ij div ii;
-                    if ii > 10 then
-                      ii := 10;
+          ii := ij div ii;
+          if ii > 10 then
+            ii := 10;
 
-                    s := s.Replace('<MODULE_WIDTH>',  ii.ToString);
-                    s := s.Replace('<WIDTH_RATIO>', '2.0');
-                  end;
+          s := s.Replace('<MODULE_WIDTH>',  ii.ToString);
+          s := s.Replace('<WIDTH_RATIO>', '2.0');
+        end;
       end;
 
-      s := Replacestr(s, '<MAGNIFICATION>', Magnification.ToString);
+      s := Replacestr(s, '<MAGNIFICATION>', BC.Magnification.ToString);
       {case BarcodeType of
         bcAztec:  s := Replacestr(s, '<MAGNIFICATION>', inttoStr(ij div 50)); //default value for 200dpi printers is 2;
         bcCodeQR: s := Replacestr(s, '<MAGNIFICATION>', inttoStr(Round((ij / ((Length(Text) + 2) * (Printer_DPI / 15))    )) ) ); //default value for 200dpi printers is 2; 5Chars / Inch
         bcCode39: s := Replacestr(s, '<MAGNIFICATION>', inttoStr(Round((ij / ((Length(Text) + 2.3) * (Printer_DPI / 13) ) )) ) ); //13 bars per character plus 2 chars for begin and end
       end;}
 
-
       s := s.Replace('<EXTENDED_CHANNEL>', getExtendedChannelStr(zeNo));
       s := s.Replace('<ERROR_AND_SYMBOL_TYPE>', '0'); //view U_ZPLTypes for possible errors
       s := s.Replace('<MENU_INDICATOR>', getMenuIndicatorStr(zmNo));
 
-      s := s.Replace('<SHOW_TEXT>', YesNo(ShowText));
+      s := s.Replace('<SHOW_TEXT>', YesNo(BC.ShowText));
       s := s.Replace('<SHOW_TEXT_ABOVE>', 'N');
 
-
       if UseVariableOrText = use_text then
-        aText := Text
+        aText := BC.Text
       else
-        aText := Variable;
+        aText := BC.Variable;
 
-      if BarCodeType = bcCodeQR then
+      if BC.BarCodeType = bcCodeQR then
         s := s.Replace('<TEXT>', 'QA,' + trim(aText) ) //Automatic correction mode for QRCode
       else
         s := s.Replace('<TEXT>', trim(aText) );
@@ -1429,11 +1466,15 @@ begin
     end
     else
     if (TObject(fZPLObjects[I]) is TZPLFormObject) then
-    with TZPLFormObject(fZPLObjects[I]) do
     begin
-      s := StrPosition(ZPLCommand, DPIDimensions);
-      s := strWidthHeight(s, DPIDimensions);
-      s := ReplaceStr(s, '<BORDERTHICK>', IntToStr(BorderThickness));
+      zpO := TZPLFormObject(fZPLObjects[I]);
+      zpO.Orientation := self.Orientation;
+      R := zpO.DPIDimensions;
+      s := zpO.ZPLCommand;
+
+      s := StrPosition(s, R);
+      s := strWidthHeight(s, R);
+      s := ReplaceStr(s, '<BORDERTHICK>', IntToStr(zpO.BorderThickness));
     end;
 
     fZPLText.Add(s);
@@ -1550,47 +1591,24 @@ begin
   fThickness := 2;
 end;
 
-function TZPLFormObject.getDPIDimensions: TRect;
-var
-  PrinterDPI : Integer;
-  L, W, T, H : Word;
-begin
-  //Remove 3px per side for compensation of visual position
-  L := Left;
-  T := Top;
-  W := Width;
-  H := Height;
-
-  case ShapeType of
-    shVertLine:
-    begin
-      L := Left + 3;
-      W := Width - 3;
-    end;
-    shHorLine:
-    begin
-      T := Top + 3;
-      H := Height - 3;
-    end;
-  end;
-
-  PrinterDPI := GetDeviceCaps(Printer.Handle, LOGPIXELSX);
-  Result.Left := Round((printerDPI/ScreenDPI) * L);
-  Result.Right := Round((printerDPI/ScreenDPI) * W);
-
-  PrinterDPI := GetDeviceCaps(Printer.Handle, LOGPIXELSY);
-  Result.Top := Round((printerDPI/ScreenDPI) * T);
-  Result.Bottom := Round((printerDPI/ScreenDPI) * H);
-end;
-
 function TZPLFormObject.GetZPLCommand: String;
 begin
   case ShapeType of
     shRectangle : Result := zplGraphicBox;
-    shVertLine : Result := zplVerticalLine;
-    shHorLine : Result := zplHorizontalLine;
+    shVertLine :
+      if orientation = loPortrait then
+        Result := zplVerticalLine
+      else
+        Result := zplHorizontalLine;
+    shHorLine :
+      if orientation = loPortrait then
+        Result := zplHorizontalLine
+      else
+        Result := zplVerticalLine;
+
     shEllipse: Result := zplEllipse;
   end;
+
   Result := FieldOrigin + Result;
 end;
 
@@ -1620,13 +1638,13 @@ begin
       shRectangle: Canvas.Rectangle(1,1, Width-1, Height-1);
       shVertLine:
       begin
-        Canvas.MoveTo( Width div 2, 1);
-        Canvas.LineTo( Width div 2, Height-1);
+        Canvas.MoveTo( Width div 2, 3);
+        Canvas.LineTo( Width div 2, Height-3);
       end;
       shHorLine:
       begin
-        Canvas.MoveTo( 1, Height div 2);
-        Canvas.LineTo( Width - 1, Height div 2);
+        Canvas.MoveTo( 3, Height div 2);
+        Canvas.LineTo( Width - 3, Height div 2);
       end;
 
       shEllipse: Canvas.Ellipse(1,1, Width-1, Height-1);

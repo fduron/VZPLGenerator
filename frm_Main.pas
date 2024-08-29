@@ -28,10 +28,9 @@ type
     pnlPage: TPanel;
     P_VRuler: TPanel;
     tsZPLScript: TTabSheet;
-    il1: TImageList;
     accLabel: TAction;
     accBarcode: TAction;
-    accInsertForm: TAction;
+    accInsertRect: TAction;
     memZPLScript: TMemo;
     EditSelectAll1: TEditSelectAll;
     EditUndoCommand: TEditUndo;
@@ -140,6 +139,15 @@ type
     ToolButton2: TToolButton;
     ToolButton3: TToolButton;
     ToolButton4: TToolButton;
+    il1: TImageList;
+    accInsertVLine: TAction;
+    accInsertHLine: TAction;
+    accInsertEllipse: TAction;
+    popForms: TPopupMenu;
+    Rectangle1: TMenuItem;
+    Horizontalline1: TMenuItem;
+    Verticalline1: TMenuItem;
+    Ellipse1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure accFormExecute(Sender: TObject);
     procedure pnlUnitsClick(Sender: TObject);
@@ -235,6 +243,24 @@ begin
 end;
 
 procedure TfrmMain.ActionInsertZPLObject(Sender: TObject);
+
+  procedure UpdateFormShape(z: TZPLObject);
+  begin
+    if (sender = accInsertRect) then
+      TZPLFormObject(Z).ShapeType := shRectangle
+    else
+    if (sender = accInsertVLine) then
+      TZPLFormObject(Z).ShapeType := shVertLine
+    else
+    if (sender = accInsertHLine) then
+      TZPLFormObject(Z).ShapeType := shHorLine
+    else
+    if (sender = accInsertEllipse) then
+      TZPLFormObject(Z).ShapeType := shEllipse;
+
+    TZPLFormObject(Z).RefreshBMP;
+  end;
+
 var
   k : TZPLObjectKind;
   Z : TZPLObject;
@@ -245,13 +271,17 @@ begin
   if sender = accBarCode then
     k := okBarCode
   else
-  if sender = accInsertForm then
+  if TAction(Sender).tag = 10 then
     k := okForm
   else
   if sender = accLabel then
     k := okLabel;
 
   z := InsertZPLObject(k);
+
+  if TAction(Sender).tag = 10 then
+    UpdateFormShape(z);
+
   z.ShowRect := ShowObjectRect;
 
   CurrentFileModified := True;
@@ -897,7 +927,7 @@ begin
           with z as TZPLFormObject do
           begin
             BorderThickness := strToInt('0' + trim(vlProperties.Values['Border']));
-            s := vlProperties.Values['ShapeType'];
+            {s := vlProperties.Values['ShapeType'];
             if s = sRectangle then
               ShapeType := shRectangle
             else
@@ -908,7 +938,7 @@ begin
               ShapeType := shHorLine
             else
             if s = sVertLine then
-              ShapeType := shVertLine;
+              ShapeType := shVertLine;}
           end;
         okLabel:
           with z as TZPLTextObject do
@@ -1089,7 +1119,7 @@ procedure TfrmMain.ViewZPLObjectProperties(Sender : TObject);
       begin
         Values['Border'] := IntToStr(BorderThickness);
         ItemProps['Border'].EditMask := '!99999;0; ';
-        Values['ShapeType'] := getShapeType(ShapeType);
+        {Values['ShapeType'] := getShapeType(ShapeType);
         with ItemProps['ShapeType'] do
         begin
           EditStyle := esPickList;
@@ -1098,7 +1128,7 @@ procedure TfrmMain.ViewZPLObjectProperties(Sender : TObject);
           PickList.Add(sVertLine);
           PickList.Add(sEllipse);
           ReadOnly := True;
-        end;
+        end;}
       end;
     end;
   end;

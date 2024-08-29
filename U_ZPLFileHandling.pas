@@ -67,7 +67,7 @@ begin
                 Attributes['kind'] := 'F';
                 with anObject as TZPLFormObject do
                 begin
-                  Attributes['type'] := ShapeType;
+                  Attributes['Type'] := ShapeType;
                   Attributes['border'] := BorderThickness;
                 end;
               end;
