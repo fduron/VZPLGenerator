@@ -709,9 +709,7 @@ begin
 end;
 
 function TZPLObject.getDPIDimensions: TRect;
-{TZPLFormObject has his own getDPIDimensions version}
 var
- // ScreenDPI ,
   PrinterDPI, L, W, T, H : Integer;
   i : FixedInt;
 begin
@@ -745,8 +743,9 @@ begin
 
   if orientation = loLandscape then //Invert coordinates
   begin
+    i := Result.Left;
     Result.Left := Printer.PageWidth - Result.Top - Result.Bottom;
-    Result.Top := Result.Left;
+    Result.Top := i;
 
     i := Result.Right;
     Result.Right := Result.Bottom;
@@ -1284,20 +1283,36 @@ function TZPLDocument.ZPLScript: String;
   function LocalGetQROrientationChar : Char;
   begin
     case orientation of
-      loPortrait: Result := getOrientationChar(zoRotated90 );
+      loPortrait: Result := getOrientationChar(zoNormal );
       loLandscape: Result := getOrientationChar(zoRotated90);
     end;
   end;
 
 
   function strFontCode(s : String; R: TRect; FontName, sText : String) : String;
+  var
+    W0, W1, H : Integer;
   begin
-    if pos('0', FontName) > 0 then //Scalable font
-      s := ReplaceStr(s, '<FONT_WIDTH>', IntToStr(Round(R.Right div (Length(sText)) * 2.54)) )
+    if orientation = loPortrait then
+    begin
+      W0 := R.Right;
+      H := R.Bottom;
+    end
     else
-      s := ReplaceStr(s, '<FONT_WIDTH>', IntToStr(Round(R.Right / (Length(sText) + 2.2)) ));
+    begin
+      W0 := R.Bottom;
+      H := R.Right;
+    end;
 
-    s := s.Replace('<FONT_CHAR_HEIGHT>', IntToStr(R.Bottom));
+    W0 := Round(W0 div (Length(sText)) * 2.54);
+    W1 := Round(W0 / (Length(sText) + 2.2));
+
+    if pos('0', FontName) > 0 then //Scalable font
+      s := ReplaceStr(s, '<FONT_WIDTH>',  W0.ToString)
+    else
+      s := ReplaceStr(s, '<FONT_WIDTH>', W1.ToString);
+
+    s := s.Replace('<FONT_CHAR_HEIGHT>', IntToStr(H));
 
     s := s.replace('<FONT_FIELD_ORIENTATION>', LocalgetOrientationChar);
     s := s.replace('<FONT_NAME>', FontName);
