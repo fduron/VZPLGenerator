@@ -31,7 +31,6 @@ type
     accLabel: TAction;
     accBarcode: TAction;
     accInsertRect: TAction;
-    memZPLScript: TMemo;
     EditSelectAll1: TEditSelectAll;
     EditUndoCommand: TEditUndo;
     FileOpen1: TFileOpen;
@@ -148,6 +147,7 @@ type
     Horizontalline1: TMenuItem;
     Verticalline1: TMenuItem;
     Ellipse1: TMenuItem;
+    reZPLCode: TRichEdit;
     procedure FormCreate(Sender: TObject);
     procedure accFormExecute(Sender: TObject);
     procedure pnlUnitsClick(Sender: TObject);
@@ -219,7 +219,7 @@ var
   frmMain: TfrmMain;
 
 implementation
-uses Printers;
+uses Printers, vcl.Graphics;
 {$R *.dfm}
 
 const
@@ -233,6 +233,91 @@ const
   cc39 = 'Code 39';
   ccQR = 'Code QR';
   ccDM = 'Code Datamatrix';
+
+  clUH = 'Ultra-High';
+  clHR = 'High reliability';
+  clST = 'Standard';
+  clHD = 'High density';
+
+procedure SetStyle(RE : TRichEdit; const Identifier : String; aColor : TColor; FS : TFontStyles);
+var
+  StartPos, FindLength: Integer;
+  Options: TSearchTypes;
+begin
+  StartPos := 0;
+
+  // Opciones de búsqueda (puedes combinar varias opciones)
+  Options := [];//[stMatchCase, stWholeWord];
+
+  // Realiza la búsqueda
+  StartPos := RE.FindText(Identifier, StartPos, Length(RE.Text), Options);
+
+  // Si se encuentra el texto, seleccionarlo
+  while StartPos <> -1 do
+  begin
+    RE.SelStart := StartPos;
+    RE.SelLength := Length(Identifier);
+    RE.SelAttributes.Color := aColor; // Puedes usar cualquier color disponible en Delphi
+    RE.SelAttributes.Style := FS;
+    StartPos := RE.FindText(Identifier, StartPos + 1, Length(RE.Text), Options);
+  end;
+end;
+
+procedure SetTextStyle(RE : TRichEdit; const StartId, EndId : String; aColor : TColor; FS : TFontStyles);
+var
+  StartPos, FindLength, P: Integer;
+  Options: TSearchTypes;
+begin
+  StartPos := 0;
+
+  // Opciones de búsqueda (puedes combinar varias opciones)
+  Options := [];//[stMatchCase, stWholeWord];
+
+  // Realiza la búsqueda
+  StartPos := RE.FindText(StartID, StartPos, Length(RE.Text), Options);
+
+  // Si se encuentra el texto, seleccionarlo
+  while StartPos <> -1 do
+  begin
+    RE.SelStart := StartPos + Length(StartId);
+    P := RE.FindText(EndID, RE.SelStart, Length(RE.Text), Options);
+    if P <> -1 then
+    begin
+      RE.SelLength := P - RE.SelStart;
+      RE.SelAttributes.Color := aColor; // Puedes usar cualquier color disponible en Delphi
+      RE.SelAttributes.Style := FS;
+    end;
+    StartPos := RE.FindText(StartID, StartPos + 1, Length(RE.Text), Options);
+  end;
+end;
+
+procedure Highlighting(RE : TRichEdit);
+begin
+  RE.SelStart := 0;
+  RE.SelLength := Length(RE.Text);
+  RE.SelAttributes.Color := clBlack; // Puedes usar cualquier color disponible en Delphi
+  RE.SelAttributes.Style := [];
+
+  SetStyle(RE, '${', clRed, []);
+  SetStyle(RE, '}$', clRed, []);
+
+  SetStyle(RE, '^XA', clBlack, [fsBold]);
+  SetStyle(RE, '^XZ', clBlack, [fsBold]);
+
+  SetStyle(RE, '^FO', clNavy, [fsBold]);
+
+  SetStyle(RE, '^FD', clPurple, [fsBold]);
+  SetStyle(RE, '^FS', clPurple, [fsBold]);
+
+  SetStyle(RE, '^GB', clGreen, [fsBold, fsUnderline]);
+  SetStyle(RE, '^BQ', clGreen, [fsBold, fsUnderline]);
+  SetStyle(RE, '^A', clTeal, [fsBold, fsUnderline]);
+
+  SetTextStyle(RE, '^FD', '^FS', clBlue, []);
+
+  RE.SelStart := 1;
+  RE.SelLength := 0;
+end;
 
 function TfrmMain.InsertZPLObject(Kind: TZPLObjectKind) : TZPLObject;
 begin
@@ -899,6 +984,8 @@ begin
 
     for z in ZPLDocument.SelectedObjects do
     begin
+      z.isVisible := vlProperties.Values['Visible'] = BoolToStr(True, True);
+
       case z.ObjectKind of
         okBarCode:
           with z as TZPLBarcodeObject do
@@ -922,6 +1009,19 @@ begin
             else
             if s = ccDM then
               BarcodeType := bcCodeDM;
+
+            s := vlProperties.Values['CorrectionLevel'];
+            if s = clUH then
+              CorrectionLevel := CLUltraHigh
+            else
+            if s = clHR then
+              CorrectionLevel := CLHighRel
+            else
+            if s = clST then
+              CorrectionLevel := CLStandard
+            else
+            if s = clHD then
+              CorrectionLevel := CLHighDensity;
           end;
         okForm:
           with z as TZPLFormObject do
@@ -971,6 +1071,7 @@ begin
     Z.ShowRect := Value;
 end;
 
+
 procedure TfrmMain.tsZPLScriptShow(Sender: TObject);
 begin
   if cbUseVariables.Checked then
@@ -978,7 +1079,8 @@ begin
   else
     ZPLDocument.UseVariableOrText := use_Text;
 
-  memZPLScript.Lines.Text := ZPLDocument.ZPLScript;
+  reZPLCode.Lines.Text := ZPLDocument.ZPLScript;
+  Highlighting(reZPLCode);
 end;
 
 procedure TfrmMain.ViewObjectDimensions(Sender : TObject);
@@ -992,6 +1094,7 @@ begin
       Values['Top'] := '';
       Values['Width'] := '';
       Values['Height'] := '';
+      Values['Visible'] := '';
     end
     else
     with TZPLObject(Sender) do
@@ -1000,11 +1103,21 @@ begin
       Values['Top'] := IntToStr(Top);
       Values['Width'] := IntToStr(Width);
       Values['Height'] := IntToStr(Height);
+      Values['Visible'] := BoolToStr(isVisible, True);
     end;
     ItemProps['Left'].EditMask := '!99999;0; ';
     ItemProps['Top'].EditMask := '!99999;0; ';
     ItemProps['Width'].EditMask := '!99999;0; ';
     ItemProps['Height'].EditMask := '!99999;0; ';
+
+    with ItemProps['Visible'] do
+    begin
+      EditStyle := esPickList;
+      PickList.Add(BoolToStr(True, True) );
+      PickList.Add(BoolToStr(False, True));
+      ReadOnly := True;
+    end;
+
   end;
 end;
 
@@ -1015,6 +1128,16 @@ procedure TfrmMain.ViewZPLObjectProperties(Sender : TObject);
       Result := 'Smooth'
     else
       Result := 'Regular';
+  end;
+
+  function bcCoLevel(value: tZPLQRCodeCorrectionLevel): String;
+  begin
+    case Value of
+      CLUltraHigh: result := clUH;
+      CLHighRel: result := clHR;
+      CLStandard: result := clST;
+      CLHighDensity: result := clHD;
+    end;
   end;
 
   function bcType(value : TBarcodeType) : String;
@@ -1077,6 +1200,7 @@ procedure TfrmMain.ViewZPLObjectProperties(Sender : TObject);
         Values['Text'] := Text;
         Values['Variable'] := Variable;
         Values['BarcodeType'] := bcType(BarcodeType);
+        Values['CorrectionLevel'] := bcCoLevel(CorrectionLevel);
         Values['ShowText'] := bcShowText(ShowText);
         Values['Magnification'] := intToStr(Magnification);
 
@@ -1088,6 +1212,16 @@ procedure TfrmMain.ViewZPLObjectProperties(Sender : TObject);
           PickList.Add(cc39);
           PickList.Add(ccQR);
           PickList.Add(ccDM);
+          ReadOnly := True;
+        end;
+
+        with ItemProps['CorrectionLevel'] do
+        begin
+          EditStyle := esPickList;
+          PickList.Add(clUH);
+          PickList.Add(clHR);
+          PickList.Add(clST);
+          PickList.Add(clHD);
           ReadOnly := True;
         end;
 

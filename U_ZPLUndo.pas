@@ -85,10 +85,13 @@ begin
       StrStream.Free;
     end;
 
+    TZPLObject(Component).Locked := TZPLObject(aLocalComponent).Locked;
+    TZPLObject(Component).isVisible := TZPLObject(aLocalComponent).isVisible;
+    TZPLObject(Component).BoundsRect := TZPLObject(aLocalComponent).BoundsRect;
+
     if Component is TZPLTextObject then
     with aLocalComponent as TZPLTextObject do
     begin
-      TZPLTextObject(Component).BoundsRect := BoundsRect;
       TZPLTextObject(Component).Text       := Text;
       TZPLTextObject(Component).FontCode   := FontCode;
     end
@@ -96,7 +99,6 @@ begin
     if Component is TZPLFormObject then
     with aLocalComponent as TZPLFormObject do
     begin
-      TZPLFormObject(Component).BoundsRect := BoundsRect;
       TZPLFormObject(Component).BorderThickness  := BorderThickness;
       TZPLFormObject(Component).ShapeType   := ShapeType;
     end
@@ -104,7 +106,6 @@ begin
     if Component is TZPLBarcodeObject then
     with aLocalComponent as TZPLBarcodeObject do
     begin
-      TZPLBarcodeObject(Component).BoundsRect  := BoundsRect;
       TZPLBarcodeObject(Component).BarcodeType := BarcodeType;
       TZPLBarcodeObject(Component).Text        := Text;
       TZPLBarcodeObject(Component).ShowText    := ShowText;

@@ -21,6 +21,7 @@ type
   TBarcodeType = ( bcAztec, bcCode11, bcCode39, bcCodeQR, bcCodeDM);
   TShapeType = ( shRectangle, shEllipse, shHorLine, shVertLine);
   tZPLObjectKind = ( okBarCode, okForm, okLabel );
+  tZPLQRCodeCorrectionLevel = (CLUltraHigh, CLHighRel, CLStandard, CLHighDensity);
 
   ///	<summary>
   ///	  This structure maintains a list sDots with the 8 Handles to move and
@@ -83,6 +84,7 @@ type
     fLocked: Boolean;
     fShowRect: Boolean;
     fOrientation: TLabelOrientation;
+    fisVisible: Boolean;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -91,6 +93,7 @@ type
     procedure SetSelected(const Value: Boolean);
     procedure SetLocked(const Value: Boolean);
     procedure SetShowRect(const Value: Boolean);
+    procedure SetIsVisible(const Value: Boolean);
     property MouseCoord : TPoint read fMouseCoord write fMouseCoord;
     procedure onEditObjectHandles(Sender : TObject; bWasMoved : Boolean);
     procedure onMoveObjectHandles(Sender : TObject; L,T: Integer; bWasMoved : Boolean);
@@ -112,6 +115,7 @@ type
     property Selected : Boolean read fSelected write SetSelected;
     property ObjectKind : TZPLObjectKind read fObjectKind;
     property Locked : Boolean read fLocked write SetLocked default false;
+    property isVisible : Boolean read fisVisible write SetIsVisible default true;
     property ShowRect : Boolean read fShowRect write SetShowRect default true;
     property Orientation : TLabelOrientation read fOrientation write fOrientation default loPortrait;
   end;
@@ -145,6 +149,7 @@ type
     fShowText: Boolean;
     fMagnification: SmallInt;
     fVariable: String;
+    FCorrectionLevel: tZPLQRCodeCorrectionLevel;
     procedure SetText(const Value: String);
     function GetZPLCommand: String;
     procedure SetVariable(const Value: String);
@@ -160,6 +165,7 @@ type
     property ZPLCommand : String read GetZPLCommand;
     property ShowText : Boolean read fShowText write fShowText default True;
     property Magnification : SmallInt read fMagnification write fMagnification;
+    property CorrectionLevel: tZPLQRCodeCorrectionLevel read FCorrectionLevel write FCorrectionLevel;
   End;
 
   TZPLFormObject = Class(TZPLObject) //(ObjectID = 'F')
@@ -306,14 +312,33 @@ const
 var
   CF_ZPL: Word;
 
+
+//function from https://engineertips.wordpress.com/2023/09/01/delphi-get-display-scaling-percentage/
+function GetDisplayScalingPercentage: Double;
+var
+  DC: HDC;
+  DPI_X: Integer;
+begin
+  DC := GetDC(0); // Get the device context of the screen
+  try
+    DPI_X := GetDeviceCaps(DC, LOGPIXELSX); // Get the DPI value for the x-axis
+    // Calculate the scaling factor
+    Result := DPI_X / 96 * 100; // Assuming 96 DPI as standard
+  finally
+    ReleaseDC(0, DC);  // Release the device context
+  end;
+end;
+
 function InchesToPixels(DC: HDC; Value: Double; IsHorizontal: Boolean): Integer;
 begin
   Result := Round(Value * GetDeviceCaps(DC, LogPixels[IsHorizontal]));
+  Result := Round(Result * (100 / GetDisplayScalingPercentage)); //Use window scale
 end;
 
 function CentimetersToPixels(DC: HDC; Value: Double; IsHorizontal: Boolean): Integer;
 begin
   Result := Round(Value * GetDeviceCaps(DC, LogPixels[IsHorizontal]) / 2.54);
+  Result := Round(Result * (100 / GetDisplayScalingPercentage)); //Use window scale
 end;
 
 //=== { T_Ruler } ===========================================================
@@ -694,6 +719,7 @@ begin
   bObjWasMoved := False;
   bFirstMove := False;
   fLocked := False;
+  fIsVisible := True;
   fShowRect := True;
   if Assigned(AOWner) then
     BMPObject := vcl.Graphics.TBitmap.Create;
@@ -857,6 +883,12 @@ begin
  {}
 end;
 
+procedure TZPLObject.SetIsVisible(const Value: Boolean);
+begin
+  fisVisible := Value;
+  Repaint;
+end;
+
 procedure TZPLObject.SetLocked(const Value: Boolean);
 begin
   fLocked := Value;
@@ -935,6 +967,11 @@ begin
 
   with BMPObject.Canvas do
   begin
+    if isVisible then
+      Font.Color := clBlack
+    else
+      Font.Color := clSilver;
+
     if FontCode = '0' then
     begin
       Font.Name := 'Arial';
@@ -1134,6 +1171,8 @@ end;
 
 function TZPLDocument.Print(iCopies : Integer = 1): String;
 var
+  lst: TextFile;
+
   oldi, i, iCp : Integer;
   s : String;
   LineTop, LineHeight : Integer;
@@ -1153,18 +1192,23 @@ begin
       fZPL.Text := ReplaceStr(fZPL.Text, '<' + fFieldValues.Names[I] + '>', fFieldValues.ValueFromIndex[I]);
 
     Printer.Title := fDocumentName;
+
+    //****When using Windows Driver, Fit all ZPL code lines inside one single page **\\\
+    //LineHeight := Printer.Canvas.TextHeight(fZPL[I]);
+    LineHeight := Printer.PageHeight div (fZPL.Count + 2);
+
     for iCp := 1 to iCopies do
     begin
       Printer.BeginDoc;
       LineTop := 0;
       for I := 0 to fZPL.Count - 1 do
       begin
-        LineHeight := Printer.Canvas.TextHeight(fZPL[I]);
-        if LineTop + LineHeight > Printer.PageHeight then
+        {never create a new page, if so this cut the code apart}
+        {if LineTop + LineHeight > Printer.PageHeight then
         begin
           LineTop := 0;
           Printer.NewPage;
-        end;
+        end;}
         ARect := Rect(0, LineTop, Printer.PageWidth, LineTop + LineHeight);
         Printer.Canvas.TextOut(ARect.Left, ARect.Top, fZPL[I]);
         LineTop := LineTop + LineHeight;
@@ -1288,7 +1332,6 @@ function TZPLDocument.ZPLScript: String;
     end;
   end;
 
-
   function strFontCode(s : String; R: TRect; FontName, sText : String) : String;
   var
     W0, W1, H : Integer;
@@ -1391,6 +1434,9 @@ begin
   for I := 0 to fZPLObjects.count - 1 do
   begin
     s := '';
+    if not TZPLObject(fZPLObjects[I]).isVisible then
+      continue;
+
     if (TObject(fZPLObjects[I]) is TZPLTextObject) then
     begin
       txO := TZPLTextObject(fZPLObjects[I]);
@@ -1461,8 +1507,16 @@ begin
       else
         aText := BC.Variable;
 
+      var CL: string := 'M'; //default
+      case BC.CorrectionLevel of
+        CLUltraHigh: CL := 'H';
+        CLHighRel: CL := 'Q';
+        CLStandard: CL := 'M';
+        CLHighDensity: CL := 'L';
+      end;
+
       if BC.BarCodeType = bcCodeQR then
-        s := s.Replace('<TEXT>', 'QA,' + trim(aText) ) //Automatic correction mode for QRCode
+        s := s.Replace('<TEXT>', CL + 'A,' + trim(aText) ) //Q=Error correction level A=Automatic correction mode for QRCode
       else
         s := s.Replace('<TEXT>', trim(aText) );
 
@@ -1471,7 +1525,7 @@ begin
       s := s.Replace('<STRUCTURED_APPEND>' , '' ); //Remove it by default is empty
       s := s.Replace('<MOD_43_CHECK_DIGIT>' , 'Y' ); //Remove it by default is empty
 
-      s := s.Replace('<MODEL>', '1'); //1(Original) 2(Enhanced - default)
+      s := s.Replace('<MODEL>', '2'); //1(Original) 2(Enhanced - default)
       s := s.Replace('<ERROR_CORRECTION>', 'M'); //H = ultra-high reliability level
                                                  //Q = high reliability level
                                                  //M = standard level
@@ -1544,6 +1598,20 @@ begin
 end;
 
 procedure TZPLBarcodeObject.RefreshBMP;
+
+  procedure ReplaceColor(OldColor, NewColor: TColor);
+  var
+    x, y: Integer;
+  begin
+    for y := 0 to BMPObject.Height - 1 do
+    begin
+      for x := 0 to BMPObject.Width - 1 do
+        if BMPObject.Canvas.Pixels[x, y] = OldColor then
+          BMPObject.Canvas.Pixels[x, y] := NewColor;
+    end;
+  end;
+
+
 var
   W, H : Integer;
   R : TRect;
@@ -1572,6 +1640,9 @@ begin
       bcCodeQR: LoadFromResourceName(HInstance, 'BC_CODEQR');
       bcCodeDM: LoadFromResourceName(HInstance, 'BC_CODEDM');
     end;
+
+    if not isVisible then
+      ReplaceColor(clBlack, clSilver);
 
   end;
   fBMPDimensions := Point(W, H);
@@ -1647,6 +1718,11 @@ begin
     Transparent := true;
     TransparentMode := tmFixed;
     TransparentColor := clWhite;
+
+    if isVisible then
+      Canvas.Pen.Color := clBlack
+    else
+      Canvas.Pen.Color := clSilver;
 
     Canvas.Pen.Width := fThickness;
     case ShapeType of

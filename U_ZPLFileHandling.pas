@@ -16,6 +16,13 @@ implementation
 uses  xml.XMLDoc, XML.XMLIntf ;
 
 function SaveToFile(zplDocument : TZPLDocument; FileName: String): Boolean;
+  function boolToStr(b : Boolean) : String;
+  begin
+    if b then
+      Result := 'True'
+    else
+      Result := 'False';
+  end;
 var
   RootNode: IXMLNode;
   i: Integer;
@@ -89,6 +96,8 @@ begin
           Attributes['height'] := anObject.Height;
           Attributes['scr_dpi'] := anObject.ScreenDPI;
           Attributes['name'] := anObject.Name;
+          Attributes['locked'] := boolToStr(anObject.Locked) ;
+          Attributes['visible'] := boolToStr(anObject.isVisible) ;
         end; //Adding an object to the XML list
 
     end;
@@ -160,6 +169,8 @@ begin
                 height    := Attributes['height'];
                 ScreenDPI := Attributes['scr_dpi'];
                 Name      := Attributes['name'];
+                Locked    := Attributes['locked'] = 'True';
+                isVisible := Attributes['visible'] = 'True';
               end;
 
               case anObject.ObjectKind of

@@ -14,14 +14,14 @@
     <Transaction>2024/01/16 17:01:42.000.348,=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Unit2.pas</Transaction>
     <Transaction>2024/02/15 13:34:05.000.014,=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Unit2.pas</Transaction>
     <Transaction>2024/03/26 12:01:11.000.100,=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Unit2.pas</Transaction>
-    <Transaction>2024/08/23 14:01:38.198,=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Unit2.pas</Transaction>
-    <Transaction>2024/08/23 14:22:18.289,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\frm_Main.pas</Transaction>
-    <Transaction>2024/08/23 14:22:51.471,D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\VZPLGenerator2.dproj=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Project2.dproj</Transaction>
-    <Transaction>2024/08/23 14:23:07.030,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLAlignment.pas</Transaction>
-    <Transaction>2024/08/23 14:23:07.085,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLClipboard.pas</Transaction>
-    <Transaction>2024/08/23 14:23:07.122,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLFileHandling.pas</Transaction>
-    <Transaction>2024/08/23 14:23:07.159,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLObjects.pas</Transaction>
-    <Transaction>2024/08/23 14:23:07.205,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLTypes.pas</Transaction>
-    <Transaction>2024/08/23 14:23:07.237,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLUndo.pas</Transaction>
+    <Transaction>2024/08/23 14:01:38.000.198,=D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Unit2.pas</Transaction>
+    <Transaction>2024/08/23 14:22:18.000.289,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\frm_Main.pas</Transaction>
+    <Transaction>2024/08/23 14:22:51.000.471,D:\User\fabian.duron\My Documents\Embarcadero\Studio\Projects\Project2.dproj=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\VZPLGenerator2.dproj</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.205,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLTypes.pas</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.085,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLClipboard.pas</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.159,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLObjects.pas</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.030,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLAlignment.pas</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.122,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLFileHandling.pas</Transaction>
+    <Transaction>2024/08/23 14:23:07.000.237,=D:\users\fabian.duron\Sistemas\Ejemplo free Reports\Editor de Tickets\U_ZPLUndo.pas</Transaction>
   </Transactions>
 </BorlandProject>
