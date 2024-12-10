@@ -270,7 +270,7 @@ type
   {$ENDIF RTL230_UP}
 
   ///	<summary>
-  ///	  This is a copy of the JvRuler object from the open source Project
+  ///	  This is a copy of the JvRuler objectÂ from the open source Project
   ///	  JEDI's JVCL
   ///	</summary>
   T_Ruler = class(TGraphicControl)
@@ -1475,7 +1475,7 @@ begin
         begin
           //Get Module width accordint to the number of characters in text
           ii := (Length(BC.Text) + 3) * 10; //add 2 due to *TEXT* 5 black bars + 5 white bars = 10
-          s.Replace('<ORIENTATION>', LocalGetOrientationChar); {TODO -oOwner -cGeneral : Por confirmar la rotacion}
+          s := s.Replace('<ORIENTATION>', LocalGetOrientationChar); {TODO -oOwner -cGeneral : Por confirmar la rotacion}
 
           iJ := R.Right; //Does not matter the orientation always yse Right as the size of the BC
 
